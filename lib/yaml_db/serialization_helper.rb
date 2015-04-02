@@ -134,6 +134,34 @@ module YamlDb
         value.kind_of?(TrueClass) or value.kind_of?(FalseClass)
       end
 
+      def self.convert_date(value)
+        return nil if value.nil?
+        #value_before = value
+        value = Date.parse( value ) unless value.kind_of? Date
+        x = value.strftime( '%Y-%m-%d' ) if value.kind_of? Date
+        #puts "#{value_before} -> #{x}" if value_before != x
+        x
+      end
+
+      def self.convert_dates(records, columns)
+        records.each do |record|
+          columns.each do |column|
+            next if is_date(record[column])
+            record[column] = convert_date(record[column])
+          end
+        end
+        records
+      end
+
+      def self.date_columns(table)
+        columns = ActiveRecord::Base.connection.columns(table).reject { |c| silence_warnings { c.type != :date } }
+        columns.map { |c| c.name }
+      end
+
+      def self.is_date(value)
+        value.kind_of?(Date)
+      end
+
       def self.quote_table(table)
         ActiveRecord::Base.connection.quote_table_name(table)
       end
@@ -178,12 +206,14 @@ module YamlDb
         pages = (total_count.to_f / records_per_page).ceil - 1
         id = table_column_names(table).first
         boolean_columns = Utils.boolean_columns(table)
+        date_columns = SerializationHelper::Utils.date_columns(table)
         quoted_table_name = Utils.quote_table(table)
 
         (0..pages).to_a.each do |page|
           query = Arel::Table.new(table, ActiveRecord::Base).order(id).skip(records_per_page*page).take(records_per_page).project(Arel.sql('*'))
           records = ActiveRecord::Base.connection.select_all(query.to_sql)
           records = Utils.convert_booleans(records, boolean_columns)
+          records = SerializationHelper::Utils.convert_dates(records, date_columns)
           yield records
         end
       end
