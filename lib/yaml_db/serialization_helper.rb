@@ -84,7 +84,16 @@ module YamlDb
         quoted_column_names = column_names.map { |column| ActiveRecord::Base.connection.quote_column_name(column) }.join(',')
         quoted_table_name = Utils.quote_table(table)
         records.each do |record|
-          quoted_values = record.zip(columns).map{|c| ActiveRecord::Base.connection.quote(c.first, c.last)}.join(',')
+          quoted_values = record.zip(columns).map do |c| 
+            #puts "val: #{c.first} = #{c.last.type}"
+            val = c.first
+            if c.last.type.to_s == 'date'
+              x = val
+              val = Utils.convert_date( val ) 
+              #puts "Here: #{x} turned into #{val}"
+            end
+            ActiveRecord::Base.connection.quote(val, c.last)
+          end.join(',')
           ActiveRecord::Base.connection.execute("INSERT INTO #{quoted_table_name} (#{quoted_column_names}) VALUES (#{quoted_values})")
         end
       end
@@ -135,6 +144,7 @@ module YamlDb
       end
 
       def self.convert_date(value)
+        #puts "Value in convert_date: #{value}"
         return nil if value.nil?
         #value_before = value
         value = Date.parse( value ) unless value.kind_of? Date
