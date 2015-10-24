@@ -94,7 +94,9 @@ module YamlDb
             end
             ActiveRecord::Base.connection.quote(val, c.last)
           end.join(',')
-          ActiveRecord::Base.connection.execute("INSERT INTO #{quoted_table_name} (#{quoted_column_names}) VALUES (#{quoted_values})")
+          sql = "INSERT INTO #{quoted_table_name} (#{quoted_column_names}) VALUES (#{quoted_values})"
+          #puts "SQL: #{sql}"
+          ActiveRecord::Base.connection.execute(sql)
         end
       end
 
